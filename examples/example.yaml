@@ -1,0 +1,116 @@
+name: example
+description: An example to motivate the specification
+defaults:
+  proto:
+    scheme: http
+    host: localhost
+    port: 8080
+    auth:
+      basic:
+        username: ${env:USERNAME}
+        password: ${env:PASSWORD}
+    headers:
+      - name: Content-Type
+        value: application/json
+  expected_status: 200
+  assertions:
+    - exists:
+        path: headers.x-request-id
+    - matches:
+        path: headers.x-request-id
+        pattern: /uuid/
+constants:
+  - name: name 
+    value: "original name"
+  - name: extra 
+    json: 
+      key: value
+      list:
+        - item1
+        - item2
+        - item3
+calls:
+  - name: a
+    proto:
+      method: POST
+      path: /records
+      params:
+        - name: status
+          value: "201"
+      body:
+        json:
+          name: ${const:name}
+    expected_status: 201
+    assertions:
+      - exists:
+          path: response.body.Headers.X-Request-Id.0
+      - matches:
+          path: response.body.Headers.X-Request-Id.0
+          pattern: /uuid/
+    store:
+      - path: response.body.Headers.X-Request-Id.0
+        as: id
+  - name: b
+    proto:
+      method: GET
+      path: /records
+    after:
+      - a
+    assertions:
+      - contains:
+          path: response.body.records.*.name
+          value: ${const:name}
+      - contains:
+          path: response.body.records.*.id
+          value: ${stored:id}
+  - name: c
+    proto:
+      method: GET
+      path: /records/${stored:id}
+    assertions:
+      - equals:
+          path: response.body.name
+          value: ${const:name}
+      - equals:
+          path: response.body.id
+          value: ${stored:id}
+  - name: d
+    proto:
+      method: PATCH
+      path: /records/${stored:id}
+      body:
+        json: 
+          name: "new name"
+    assertions:
+      - equals:
+          path: response.body.name
+          value: "new name"
+      - equals:
+          path: response.body.id
+          value: ${call:a.response.body.id}
+  - name: e
+    proto:
+      method: GET
+      path: /records/${stored:id}
+    after:
+      - d
+    assertions:
+      - equals:
+          path: response.body.name
+          value: "new name"
+      - equals:
+          path: response.body.id
+          value: ${stored:id}
+  - name: f
+    proto:
+      method: GET
+      path: /records/${stored:id}/${call:a.response.headers.x-request-id.0}
+    after:
+      - e
+    assertions:
+      - equals:
+          path: response.body.name
+          value: "new name"
+      - equals:
+          path: response.body.id
+          value: ${stored:id}

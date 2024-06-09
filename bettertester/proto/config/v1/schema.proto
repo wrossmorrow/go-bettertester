@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package config.v1;
+
+import "google/protobuf/struct.proto";
+
+// import "validate/validate.proto";
+// import "buf/validate/validate.proto";
+
+message Config {
+    string name = 1;
+    string description = 2;
+    string version = 3;
+    repeated Constant constants = 4;
+    CallSpec defaults = 5;
+    repeated CallSpec calls = 6;
+}
+
+message Constant {
+    string name = 1;
+    string description = 2;
+    oneof v {
+        string value = 3;
+        google.protobuf.Struct json = 4;
+    }
+}
+
+message CallSpec {
+    string name = 1;
+    string description = 2;
+    CallProto proto = 3;
+    repeated string after = 4;
+    int32 expected_status = 5;
+    repeated Assertion assertions = 6;
+    repeated StoreSpec store = 7;
+}
+
+// prototype for a call, can contain placeholders to resolve
+// during execution based on constants, stored values, or 
+// environment variables, or references
+message CallProto {
+    string method = 1;
+    string scheme = 2;
+    string host = 3;
+    int32 port = 4;
+    string path = 5;
+    AuthSpec auth = 6;
+    repeated CallHeader headers = 7;
+    repeated CallParam params = 8;
+    CallBody body = 9;
+}
+
+message CallHeader {
+    string name = 1;
+    string value = 2;
+    repeated string values = 3;
+}
+
+message CallParam {
+    string name = 1;
+    string value = 2;
+    repeated string values = 3;
+}
+
+// authentication specification
+message AuthSpec {
+    oneof auth {
+        BasicAuthSpec basic = 1;
+        BearerAuthSpec bearer = 2;
+    }
+}
+
+// basic auth specification
+message BasicAuthSpec {
+    string username = 1;
+    string password = 2;
+}
+
+// bearer auth specification
+message BearerAuthSpec {
+    oneof spec {
+        string token = 1;
+        DynamicTokenSpec login = 2;
+    }
+}
+
+// dynamic token specification
+message DynamicTokenSpec {
+    CallProto proto = 1;
+    string token_path = 2;
+}
+
+// call body specification
+message CallBody {
+    oneof body {
+        // bytes...
+        string text = 1;
+        google.protobuf.Struct form = 2; // form data
+        google.protobuf.Struct json = 3; // JSON data
+    }
+}
+
+// for describing what paths in responses should be stored, 
+// with convenient names for them
+message StoreSpec {
+    string path = 1;
+    string as = 2;
+}
+
+message Assertion {
+    oneof assertion {
+        StatusAssertion status = 1;
+        ExistsAssertion exists = 2;
+        ContainsAssertion contains = 3;
+        EqualsAssertion equals = 4;
+        MatchesAssertion matches = 5;
+        // ExprAssertion expr = 6; // would be cool
+    }
+}
+
+message StatusAssertion {
+    int32 code = 1;
+}
+
+message ExistsAssertion {
+    string path = 1;
+}
+
+message ContainsAssertion {
+    string path = 1;
+    string value = 2;
+}
+
+message EqualsAssertion {
+    string path = 1;
+    string value = 2;
+}
+
+message MatchesAssertion {
+    string path = 1;
+    string pattern = 2;
+}

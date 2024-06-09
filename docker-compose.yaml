@@ -1,0 +1,22 @@
+services:
+
+  envoy:
+    image: envoyproxy/envoy:${ENVOY_VERSION:-v1.26-latest}
+    ports:
+      - "8080:8080"
+      - "9901:9901"
+    volumes:
+      - ./${ENVOY_CONFIG:-./mocks/envoy.yaml}:/etc/envoy/envoy.yaml
+      
+  echo:
+    build:
+      context: mocks/echo-server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8080"
+    command:
+      - /echo
+      - -port
+      - "8080"
+      - -name
+      - "echo-service"
